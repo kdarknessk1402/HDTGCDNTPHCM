@@ -25,7 +25,7 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="<?php echo BASE_URL; ?>">
                 <i class="bi bi-file-earmark-text"></i>
-                HĐ Thỉnh giảng
+                Hợp đồng Thỉnh giảng
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>

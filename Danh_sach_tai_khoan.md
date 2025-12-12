@@ -105,12 +105,12 @@
 
 ## 📝 GHI CHÚ
 
-- Tất cả email đều theo domain: `@cdnhcm.edu.vn`
+- Tất cả email đều theo domain: `chưa có domain`
 - Số điện thoại mẫu: `0901234567` → `0901234577`
 - Tất cả tài khoản đều ở trạng thái ACTIVE (`is_active = 1`)
 - Để test đầy đủ chức năng, nên đăng nhập thử từng loại tài khoản
 
 ---
 
-**Ngày tạo**: 2025-12-11  
-**Database version**: 2.0
+**Ngày tạo**: 12/12/2025
+**Database version**: 1.0

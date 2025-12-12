@@ -35,15 +35,21 @@ define('UPLOAD_IMPORT', UPLOAD_PATH . '/imports');
 define('UPLOAD_TEMP', UPLOAD_PATH . '/temp');
 
 // Session Configuration
-ini_set('session.gc_maxlifetime', 86400); // 24 hours
-session_set_cookie_params([
-    'lifetime' => 86400,
-    'path' => '/',
-    'domain' => '',
-    'secure' => false, // Set true nếu dùng HTTPS
-    'httponly' => true,
-    'samesite' => 'Lax'
-]);
+// ini_set('session.gc_maxlifetime', 86400);
+// session_set_cookie_params([
+//     'lifetime' => 86400,
+//     'path' => '/',
+//     'domain' => '',
+//     'secure' => false, 
+//     'httponly' => true,
+//     'samesite' => 'Lax'
+// ]);
+// Session Configuration
+// Lưu ý: Phải gọi TRƯỚC session_start() trong từng file
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.gc_maxlifetime', 86400);
+    session_set_cookie_params(86400, '/', '', false, true);
+}
 
 // Timezone
 date_default_timezone_set('Asia/Ho_Chi_Minh');
