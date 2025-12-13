@@ -1,197 +1,190 @@
 <?php
-require_once __DIR__ . '/Model.php';
-
 /**
- * Lop Model
- * TÊN CỘT DATABASE: lop_id, nghe_id, nien_khoa_id, ma_lop, ten_lop, si_so, giao_vien_chu_nhiem, thu_tu, is_active
+ * Model: Lop
+ * Quản lý lớp học
  */
-class Lop extends Model {
-    protected $table = 'lop';
-    protected $primaryKey = 'lop_id';
+
+class Lop {
+    private $db;
+    private $table = 'lop';
+    
+    public function __construct($db) {
+        $this->db = $db;
+    }
     
     /**
-     * Lấy tất cả lớp với thông tin nghề và niên khóa
+     * Lấy tất cả lớp
      */
-    public function getAllWithDetails() {
-        $sql = "SELECT 
-                    l.lop_id,
-                    l.nghe_id,
-                    l.nien_khoa_id,
-                    l.ma_lop,
-                    l.ten_lop,
-                    l.si_so,
-                    l.giao_vien_chu_nhiem,
-                    l.thu_tu,
-                    l.is_active,
-                    l.created_at,
-                    l.updated_at,
-                    n.ma_nghe,
-                    n.ten_nghe,
-                    nk.ma_nien_khoa,
-                    nk.ten_nien_khoa,
-                    k.ma_khoa,
-                    k.ten_khoa
-                FROM lop l
-                LEFT JOIN nghe n ON l.nghe_id = n.nghe_id
-                LEFT JOIN nien_khoa nk ON l.nien_khoa_id = nk.nien_khoa_id
-                LEFT JOIN khoa k ON n.khoa_id = k.khoa_id
-                ORDER BY k.ten_khoa ASC, n.ten_nghe ASC, l.thu_tu ASC, l.ten_lop ASC";
+    public function getAll($nghe_id = null, $nien_khoa_id = null, $is_active = null) {
+        $query = "SELECT l.*, 
+                         n.ma_nghe, n.ten_nghe,
+                         k.ten_khoa,
+                         nk.ten_nien_khoa
+                  FROM {$this->table} l
+                  LEFT JOIN nghe n ON l.nghe_id = n.nghe_id
+                  LEFT JOIN khoa k ON n.khoa_id = k.khoa_id
+                  LEFT JOIN nien_khoa nk ON l.nien_khoa_id = nk.nien_khoa_id
+                  WHERE 1=1";
         
-        $stmt = $this->db->prepare($sql);
+        if ($nghe_id !== null) $query .= " AND l.nghe_id = :nghe_id";
+        if ($nien_khoa_id !== null) $query .= " AND l.nien_khoa_id = :nien_khoa_id";
+        if ($is_active !== null) $query .= " AND l.is_active = :is_active";
+        
+        $query .= " ORDER BY l.ten_lop ASC";
+        
+        $stmt = $this->db->prepare($query);
+        
+        if ($nghe_id !== null) $stmt->bindParam(':nghe_id', $nghe_id);
+        if ($nien_khoa_id !== null) $stmt->bindParam(':nien_khoa_id', $nien_khoa_id);
+        if ($is_active !== null) $stmt->bindParam(':is_active', $is_active);
+        
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
     /**
-     * Lấy lớp theo ID với thông tin chi tiết
+     * Lấy lớp theo ID
      */
-    public function getByIdWithDetails($id) {
-        $sql = "SELECT 
-                    l.*,
-                    n.ten_nghe,
-                    nk.ten_nien_khoa
-                FROM lop l
-                LEFT JOIN nghe n ON l.nghe_id = n.nghe_id
-                LEFT JOIN nien_khoa nk ON l.nien_khoa_id = nk.nien_khoa_id
-                WHERE l.lop_id = :id
-                LIMIT 1";
+    public function getById($id) {
+        $query = "SELECT l.*, n.ten_nghe, k.ten_khoa, nk.ten_nien_khoa
+                  FROM {$this->table} l
+                  LEFT JOIN nghe n ON l.nghe_id = n.nghe_id
+                  LEFT JOIN khoa k ON n.khoa_id = k.khoa_id
+                  LEFT JOIN nien_khoa nk ON l.nien_khoa_id = nk.nien_khoa_id
+                  WHERE l.lop_id = :id";
         
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':id', $id);
         $stmt->execute();
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
     
     /**
-     * Lấy lớp theo nghề
+     * Tạo lớp mới
      */
-    public function getByNghe($nghe_id) {
-        return $this->getAll(['nghe_id' => $nghe_id, 'is_active' => 1], 'thu_tu ASC, ten_lop ASC');
-    }
-    
-    /**
-     * Kiểm tra mã lớp đã tồn tại trong nghề chưa
-     */
-    public function checkMaLopExists($nghe_id, $ma_lop, $exclude_id = null) {
-        $sql = "SELECT COUNT(*) FROM lop WHERE nghe_id = :nghe_id AND ma_lop = :ma_lop";
+    public function create($data) {
+        $query = "INSERT INTO {$this->table} 
+                  (nghe_id, nien_khoa_id, ma_lop, ten_lop, si_so, giao_vien_chu_nhiem, thu_tu, is_active, created_by)
+                  VALUES 
+                  (:nghe_id, :nien_khoa_id, :ma_lop, :ten_lop, :si_so, :giao_vien_chu_nhiem, :thu_tu, :is_active, :created_by)";
         
-        if ($exclude_id) {
-            $sql .= " AND lop_id != :exclude_id";
-        }
+        $stmt = $this->db->prepare($query);
         
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':nghe_id', $nghe_id, PDO::PARAM_INT);
-        $stmt->bindValue(':ma_lop', $ma_lop);
-        
-        if ($exclude_id) {
-            $stmt->bindValue(':exclude_id', $exclude_id, PDO::PARAM_INT);
-        }
-        
-        $stmt->execute();
-        return $stmt->fetchColumn() > 0;
-    }
-    
-    /**
-     * Đếm số hợp đồng thuộc lớp
-     */
-    public function countHopDong($lop_id) {
-        $sql = "SELECT COUNT(*) FROM hop_dong WHERE lop_id = :lop_id";
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':lop_id', $lop_id, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchColumn();
-    }
-    
-    /**
-     * Thêm lớp mới - TÊN CỘT CHÍNH XÁC
-     */
-    public function createLop($data) {
-        $sql = "INSERT INTO lop (
-                    nghe_id,
-                    nien_khoa_id,
-                    ma_lop,
-                    ten_lop,
-                    si_so,
-                    giao_vien_chu_nhiem,
-                    thu_tu,
-                    is_active,
-                    created_by
-                ) VALUES (
-                    :nghe_id,
-                    :nien_khoa_id,
-                    :ma_lop,
-                    :ten_lop,
-                    :si_so,
-                    :giao_vien_chu_nhiem,
-                    :thu_tu,
-                    :is_active,
-                    :created_by
-                )";
-        
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':nghe_id', $data['nghe_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':nien_khoa_id', $data['nien_khoa_id'] ?? null, PDO::PARAM_INT);
-        $stmt->bindValue(':ma_lop', $data['ma_lop']);
-        $stmt->bindValue(':ten_lop', $data['ten_lop']);
-        $stmt->bindValue(':si_so', $data['si_so'] ?? null, PDO::PARAM_INT);
-        $stmt->bindValue(':giao_vien_chu_nhiem', $data['giao_vien_chu_nhiem'] ?? null);
-        $stmt->bindValue(':thu_tu', $data['thu_tu'] ?? 0, PDO::PARAM_INT);
-        $stmt->bindValue(':is_active', $data['is_active'] ?? 1, PDO::PARAM_INT);
-        $stmt->bindValue(':created_by', $_SESSION['user_id'], PDO::PARAM_INT);
-        
-        return $stmt->execute();
-    }
-    
-    /**
-     * Cập nhật lớp - TÊN CỘT CHÍNH XÁC
-     */
-    public function updateLop($id, $data) {
-        $sql = "UPDATE lop SET
-                    nghe_id = :nghe_id,
-                    nien_khoa_id = :nien_khoa_id,
-                    ma_lop = :ma_lop,
-                    ten_lop = :ten_lop,
-                    si_so = :si_so,
-                    giao_vien_chu_nhiem = :giao_vien_chu_nhiem,
-                    thu_tu = :thu_tu,
-                    is_active = :is_active,
-                    updated_by = :updated_by
-                WHERE lop_id = :id";
-        
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':nghe_id', $data['nghe_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':nien_khoa_id', $data['nien_khoa_id'] ?? null, PDO::PARAM_INT);
-        $stmt->bindValue(':ma_lop', $data['ma_lop']);
-        $stmt->bindValue(':ten_lop', $data['ten_lop']);
-        $stmt->bindValue(':si_so', $data['si_so'] ?? null, PDO::PARAM_INT);
-        $stmt->bindValue(':giao_vien_chu_nhiem', $data['giao_vien_chu_nhiem'] ?? null);
-        $stmt->bindValue(':thu_tu', $data['thu_tu'] ?? 0, PDO::PARAM_INT);
-        $stmt->bindValue(':is_active', $data['is_active'] ?? 1, PDO::PARAM_INT);
-        $stmt->bindValue(':updated_by', $_SESSION['user_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
-        
-        return $stmt->execute();
-    }
-    
-    /**
-     * Xóa lớp (soft delete)
-     */
-    public function deleteLop($id) {
-        // Kiểm tra có hợp đồng nào không
-        if ($this->countHopDong($id) > 0) {
-            return ['success' => false, 'message' => 'Không thể xóa lớp vì có hợp đồng liên quan'];
-        }
-        
-        // Xóa
-        $sql = "UPDATE lop SET is_active = 0, updated_by = :updated_by WHERE lop_id = :id";
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':updated_by', $_SESSION['user_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt->bindParam(':nghe_id', $data['nghe_id']);
+        $stmt->bindParam(':nien_khoa_id', $data['nien_khoa_id']);
+        $stmt->bindParam(':ma_lop', $data['ma_lop']);
+        $stmt->bindParam(':ten_lop', $data['ten_lop']);
+        $stmt->bindParam(':si_so', $data['si_so']);
+        $stmt->bindParam(':giao_vien_chu_nhiem', $data['giao_vien_chu_nhiem']);
+        $stmt->bindParam(':thu_tu', $data['thu_tu']);
+        $stmt->bindParam(':is_active', $data['is_active']);
+        $stmt->bindParam(':created_by', $data['created_by']);
         
         if ($stmt->execute()) {
-            return ['success' => true, 'message' => 'Xóa lớp thành công'];
+            return $this->db->lastInsertId();
         }
+        return false;
+    }
+    
+    /**
+     * Cập nhật lớp
+     */
+    public function update($id, $data) {
+        $query = "UPDATE {$this->table}
+                  SET nghe_id = :nghe_id,
+                      nien_khoa_id = :nien_khoa_id,
+                      ma_lop = :ma_lop,
+                      ten_lop = :ten_lop,
+                      si_so = :si_so,
+                      giao_vien_chu_nhiem = :giao_vien_chu_nhiem,
+                      thu_tu = :thu_tu,
+                      is_active = :is_active,
+                      updated_by = :updated_by
+                  WHERE lop_id = :id";
         
-        return ['success' => false, 'message' => 'Lỗi khi xóa lớp'];
+        $stmt = $this->db->prepare($query);
+        
+        $stmt->bindParam(':nghe_id', $data['nghe_id']);
+        $stmt->bindParam(':nien_khoa_id', $data['nien_khoa_id']);
+        $stmt->bindParam(':ma_lop', $data['ma_lop']);
+        $stmt->bindParam(':ten_lop', $data['ten_lop']);
+        $stmt->bindParam(':si_so', $data['si_so']);
+        $stmt->bindParam(':giao_vien_chu_nhiem', $data['giao_vien_chu_nhiem']);
+        $stmt->bindParam(':thu_tu', $data['thu_tu']);
+        $stmt->bindParam(':is_active', $data['is_active']);
+        $stmt->bindParam(':updated_by', $data['updated_by']);
+        $stmt->bindParam(':id', $id);
+        
+        return $stmt->execute();
+    }
+    
+    /**
+     * Xóa lớp
+     */
+    public function delete($id) {
+        if ($this->hasRelatedRecords($id)) return false;
+        
+        $query = "DELETE FROM {$this->table} WHERE lop_id = :id";
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':id', $id);
+        return $stmt->execute();
+    }
+    
+    /**
+     * Kiểm tra ràng buộc
+     */
+    public function hasRelatedRecords($id) {
+        $query = "SELECT COUNT(*) as count FROM hop_dong WHERE lop_id = :id";
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':id', $id);
+        $stmt->execute();
+        return $stmt->fetch(PDO::FETCH_ASSOC)['count'] > 0;
+    }
+    
+    /**
+     * Kiểm tra trùng mã
+     */
+    public function checkDuplicateMa($ma_lop, $exclude_id = null) {
+        $query = "SELECT COUNT(*) as count FROM {$this->table} WHERE ma_lop = :ma_lop";
+        if ($exclude_id !== null) $query .= " AND lop_id != :exclude_id";
+        
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':ma_lop', $ma_lop);
+        if ($exclude_id !== null) $stmt->bindParam(':exclude_id', $exclude_id);
+        
+        $stmt->execute();
+        return $stmt->fetch(PDO::FETCH_ASSOC)['count'] > 0;
+    }
+    
+    /**
+     * Lấy lớp theo nghề và niên khóa (cho dropdown)
+     */
+    public function getByNgheNienKhoa($nghe_id, $nien_khoa_id, $is_active = 1) {
+        $query = "SELECT lop_id, ma_lop, ten_lop, si_so
+                  FROM {$this->table}
+                  WHERE nghe_id = :nghe_id AND nien_khoa_id = :nien_khoa_id";
+        
+        if ($is_active !== null) $query .= " AND is_active = :is_active";
+        $query .= " ORDER BY ten_lop ASC";
+        
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':nghe_id', $nghe_id);
+        $stmt->bindParam(':nien_khoa_id', $nien_khoa_id);
+        if ($is_active !== null) $stmt->bindParam(':is_active', $is_active);
+        
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
+    /**
+     * Cập nhật trạng thái
+     */
+    public function updateStatus($id, $is_active, $updated_by) {
+        $query = "UPDATE {$this->table} SET is_active = :is_active, updated_by = :updated_by WHERE lop_id = :id";
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':is_active', $is_active);
+        $stmt->bindParam(':updated_by', $updated_by);
+        $stmt->bindParam(':id', $id);
+        return $stmt->execute();
     }
 }

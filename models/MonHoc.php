@@ -1,216 +1,203 @@
 <?php
-require_once __DIR__ . '/Model.php';
-
 /**
- * MonHoc Model
- * TÊN CỘT DATABASE: mon_hoc_id, nghe_id, nien_khoa_id, ma_mon_hoc, ten_mon_hoc, 
- * so_tiet_ly_thuyet, so_tiet_thuc_hanh, tong_so_tiet, mo_ta, thu_tu, is_active
+ * Model: MonHoc
+ * Quản lý môn học
  */
-class MonHoc extends Model {
-    protected $table = 'mon_hoc';
-    protected $primaryKey = 'mon_hoc_id';
+
+class MonHoc {
+    private $db;
+    private $table = 'mon_hoc';
+    
+    public function __construct($db) {
+        $this->db = $db;
+    }
     
     /**
-     * Lấy tất cả môn học với thông tin nghề và niên khóa
+     * Lấy tất cả môn học
      */
-    public function getAllWithDetails() {
-        $sql = "SELECT 
-                    mh.mon_hoc_id,
-                    mh.nghe_id,
-                    mh.nien_khoa_id,
-                    mh.ma_mon_hoc,
-                    mh.ten_mon_hoc,
-                    mh.so_tiet_ly_thuyet,
-                    mh.so_tiet_thuc_hanh,
-                    mh.tong_so_tiet,
-                    mh.mo_ta,
-                    mh.thu_tu,
-                    mh.is_active,
-                    mh.created_at,
-                    mh.updated_at,
-                    n.ma_nghe,
-                    n.ten_nghe,
-                    nk.ma_nien_khoa,
-                    nk.ten_nien_khoa,
-                    k.ma_khoa,
-                    k.ten_khoa
-                FROM mon_hoc mh
-                LEFT JOIN nghe n ON mh.nghe_id = n.nghe_id
-                LEFT JOIN nien_khoa nk ON mh.nien_khoa_id = nk.nien_khoa_id
-                LEFT JOIN khoa k ON n.khoa_id = k.khoa_id
-                ORDER BY k.ten_khoa ASC, n.ten_nghe ASC, mh.thu_tu ASC, mh.ten_mon_hoc ASC";
+    public function getAll($nghe_id = null, $nien_khoa_id = null, $is_active = null) {
+        $query = "SELECT mh.*, 
+                         n.ma_nghe, n.ten_nghe,
+                         k.ten_khoa,
+                         nk.ten_nien_khoa
+                  FROM {$this->table} mh
+                  LEFT JOIN nghe n ON mh.nghe_id = n.nghe_id
+                  LEFT JOIN khoa k ON n.khoa_id = k.khoa_id
+                  LEFT JOIN nien_khoa nk ON mh.nien_khoa_id = nk.nien_khoa_id
+                  WHERE 1=1";
         
-        $stmt = $this->db->prepare($sql);
+        if ($nghe_id !== null) $query .= " AND mh.nghe_id = :nghe_id";
+        if ($nien_khoa_id !== null) $query .= " AND mh.nien_khoa_id = :nien_khoa_id";
+        if ($is_active !== null) $query .= " AND mh.is_active = :is_active";
+        
+        $query .= " ORDER BY mh.hoc_ky ASC, mh.thu_tu ASC, mh.ten_mon_hoc ASC";
+        
+        $stmt = $this->db->prepare($query);
+        
+        if ($nghe_id !== null) $stmt->bindParam(':nghe_id', $nghe_id);
+        if ($nien_khoa_id !== null) $stmt->bindParam(':nien_khoa_id', $nien_khoa_id);
+        if ($is_active !== null) $stmt->bindParam(':is_active', $is_active);
+        
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
     /**
-     * Lấy môn học theo ID với thông tin chi tiết
+     * Lấy môn học theo ID
      */
-    public function getByIdWithDetails($id) {
-        $sql = "SELECT 
-                    mh.*,
-                    n.ten_nghe,
-                    nk.ten_nien_khoa
-                FROM mon_hoc mh
-                LEFT JOIN nghe n ON mh.nghe_id = n.nghe_id
-                LEFT JOIN nien_khoa nk ON mh.nien_khoa_id = nk.nien_khoa_id
-                WHERE mh.mon_hoc_id = :id
-                LIMIT 1";
+    public function getById($id) {
+        $query = "SELECT mh.*, n.ten_nghe, k.ten_khoa, nk.ten_nien_khoa
+                  FROM {$this->table} mh
+                  LEFT JOIN nghe n ON mh.nghe_id = n.nghe_id
+                  LEFT JOIN khoa k ON n.khoa_id = k.khoa_id
+                  LEFT JOIN nien_khoa nk ON mh.nien_khoa_id = nk.nien_khoa_id
+                  WHERE mh.mon_hoc_id = :id";
         
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':id', $id);
         $stmt->execute();
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
     
     /**
-     * Lấy môn học theo nghề
+     * Tạo môn học mới
      */
-    public function getByNghe($nghe_id, $is_active = 1) {
-        $conditions = ['nghe_id' => $nghe_id];
+    public function create($data) {
+        $query = "INSERT INTO {$this->table} 
+                  (nghe_id, nien_khoa_id, ma_mon_hoc, ten_mon_hoc, so_tin_chi, so_gio_ly_thuyet, so_gio_thuc_hanh, so_gio_chuan, hoc_ky, mo_ta, thu_tu, is_active, created_by)
+                  VALUES 
+                  (:nghe_id, :nien_khoa_id, :ma_mon_hoc, :ten_mon_hoc, :so_tin_chi, :so_gio_ly_thuyet, :so_gio_thuc_hanh, :so_gio_chuan, :hoc_ky, :mo_ta, :thu_tu, :is_active, :created_by)";
         
-        if ($is_active !== null) {
-            $conditions['is_active'] = $is_active;
-        }
+        $stmt = $this->db->prepare($query);
         
-        return $this->getAll($conditions, 'thu_tu ASC, ten_mon_hoc ASC');
-    }
-    
-    /**
-     * Kiểm tra mã môn học đã tồn tại trong nghề chưa
-     */
-    public function checkMaMonHocExists($nghe_id, $ma_mon_hoc, $exclude_id = null) {
-        $sql = "SELECT COUNT(*) FROM mon_hoc WHERE nghe_id = :nghe_id AND ma_mon_hoc = :ma_mon_hoc";
-        
-        if ($exclude_id) {
-            $sql .= " AND mon_hoc_id != :exclude_id";
-        }
-        
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':nghe_id', $nghe_id, PDO::PARAM_INT);
-        $stmt->bindValue(':ma_mon_hoc', $ma_mon_hoc);
-        
-        if ($exclude_id) {
-            $stmt->bindValue(':exclude_id', $exclude_id, PDO::PARAM_INT);
-        }
-        
-        $stmt->execute();
-        return $stmt->fetchColumn() > 0;
-    }
-    
-    /**
-     * Đếm số hợp đồng thuộc môn học
-     */
-    public function countHopDong($mon_hoc_id) {
-        $sql = "SELECT COUNT(*) FROM hop_dong WHERE mon_hoc_id = :mon_hoc_id";
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':mon_hoc_id', $mon_hoc_id, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchColumn();
-    }
-    
-    /**
-     * Thêm môn học mới - TÊN CỘT CHÍNH XÁC
-     */
-    public function createMonHoc($data) {
-        $sql = "INSERT INTO mon_hoc (
-                    nghe_id,
-                    nien_khoa_id,
-                    ma_mon_hoc,
-                    ten_mon_hoc,
-                    so_tiet_ly_thuyet,
-                    so_tiet_thuc_hanh,
-                    tong_so_tiet,
-                    mo_ta,
-                    thu_tu,
-                    is_active,
-                    created_by
-                ) VALUES (
-                    :nghe_id,
-                    :nien_khoa_id,
-                    :ma_mon_hoc,
-                    :ten_mon_hoc,
-                    :so_tiet_ly_thuyet,
-                    :so_tiet_thuc_hanh,
-                    :tong_so_tiet,
-                    :mo_ta,
-                    :thu_tu,
-                    :is_active,
-                    :created_by
-                )";
-        
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':nghe_id', $data['nghe_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':nien_khoa_id', $data['nien_khoa_id'] ?? null, PDO::PARAM_INT);
-        $stmt->bindValue(':ma_mon_hoc', $data['ma_mon_hoc']);
-        $stmt->bindValue(':ten_mon_hoc', $data['ten_mon_hoc']);
-        $stmt->bindValue(':so_tiet_ly_thuyet', $data['so_tiet_ly_thuyet'] ?? 0, PDO::PARAM_INT);
-        $stmt->bindValue(':so_tiet_thuc_hanh', $data['so_tiet_thuc_hanh'] ?? 0, PDO::PARAM_INT);
-        $stmt->bindValue(':tong_so_tiet', $data['tong_so_tiet'] ?? 0, PDO::PARAM_INT);
-        $stmt->bindValue(':mo_ta', $data['mo_ta'] ?? null);
-        $stmt->bindValue(':thu_tu', $data['thu_tu'] ?? 0, PDO::PARAM_INT);
-        $stmt->bindValue(':is_active', $data['is_active'] ?? 1, PDO::PARAM_INT);
-        $stmt->bindValue(':created_by', $_SESSION['user_id'], PDO::PARAM_INT);
-        
-        return $stmt->execute();
-    }
-    
-    /**
-     * Cập nhật môn học - TÊN CỘT CHÍNH XÁC
-     */
-    public function updateMonHoc($id, $data) {
-        $sql = "UPDATE mon_hoc SET
-                    nghe_id = :nghe_id,
-                    nien_khoa_id = :nien_khoa_id,
-                    ma_mon_hoc = :ma_mon_hoc,
-                    ten_mon_hoc = :ten_mon_hoc,
-                    so_tiet_ly_thuyet = :so_tiet_ly_thuyet,
-                    so_tiet_thuc_hanh = :so_tiet_thuc_hanh,
-                    tong_so_tiet = :tong_so_tiet,
-                    mo_ta = :mo_ta,
-                    thu_tu = :thu_tu,
-                    is_active = :is_active,
-                    updated_by = :updated_by
-                WHERE mon_hoc_id = :id";
-        
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':nghe_id', $data['nghe_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':nien_khoa_id', $data['nien_khoa_id'] ?? null, PDO::PARAM_INT);
-        $stmt->bindValue(':ma_mon_hoc', $data['ma_mon_hoc']);
-        $stmt->bindValue(':ten_mon_hoc', $data['ten_mon_hoc']);
-        $stmt->bindValue(':so_tiet_ly_thuyet', $data['so_tiet_ly_thuyet'] ?? 0, PDO::PARAM_INT);
-        $stmt->bindValue(':so_tiet_thuc_hanh', $data['so_tiet_thuc_hanh'] ?? 0, PDO::PARAM_INT);
-        $stmt->bindValue(':tong_so_tiet', $data['tong_so_tiet'] ?? 0, PDO::PARAM_INT);
-        $stmt->bindValue(':mo_ta', $data['mo_ta'] ?? null);
-        $stmt->bindValue(':thu_tu', $data['thu_tu'] ?? 0, PDO::PARAM_INT);
-        $stmt->bindValue(':is_active', $data['is_active'] ?? 1, PDO::PARAM_INT);
-        $stmt->bindValue(':updated_by', $_SESSION['user_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
-        
-        return $stmt->execute();
-    }
-    
-    /**
-     * Xóa môn học (soft delete)
-     */
-    public function deleteMonHoc($id) {
-        // Kiểm tra có hợp đồng nào không
-        if ($this->countHopDong($id) > 0) {
-            return ['success' => false, 'message' => 'Không thể xóa môn học vì có hợp đồng liên quan'];
-        }
-        
-        // Xóa
-        $sql = "UPDATE mon_hoc SET is_active = 0, updated_by = :updated_by WHERE mon_hoc_id = :id";
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':updated_by', $_SESSION['user_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt->bindParam(':nghe_id', $data['nghe_id']);
+        $stmt->bindParam(':nien_khoa_id', $data['nien_khoa_id']);
+        $stmt->bindParam(':ma_mon_hoc', $data['ma_mon_hoc']);
+        $stmt->bindParam(':ten_mon_hoc', $data['ten_mon_hoc']);
+        $stmt->bindParam(':so_tin_chi', $data['so_tin_chi']);
+        $stmt->bindParam(':so_gio_ly_thuyet', $data['so_gio_ly_thuyet']);
+        $stmt->bindParam(':so_gio_thuc_hanh', $data['so_gio_thuc_hanh']);
+        $stmt->bindParam(':so_gio_chuan', $data['so_gio_chuan']);
+        $stmt->bindParam(':hoc_ky', $data['hoc_ky']);
+        $stmt->bindParam(':mo_ta', $data['mo_ta']);
+        $stmt->bindParam(':thu_tu', $data['thu_tu']);
+        $stmt->bindParam(':is_active', $data['is_active']);
+        $stmt->bindParam(':created_by', $data['created_by']);
         
         if ($stmt->execute()) {
-            return ['success' => true, 'message' => 'Xóa môn học thành công'];
+            return $this->db->lastInsertId();
         }
+        return false;
+    }
+    
+    /**
+     * Cập nhật môn học
+     */
+    public function update($id, $data) {
+        $query = "UPDATE {$this->table}
+                  SET nghe_id = :nghe_id,
+                      nien_khoa_id = :nien_khoa_id,
+                      ma_mon_hoc = :ma_mon_hoc,
+                      ten_mon_hoc = :ten_mon_hoc,
+                      so_tin_chi = :so_tin_chi,
+                      so_gio_ly_thuyet = :so_gio_ly_thuyet,
+                      so_gio_thuc_hanh = :so_gio_thuc_hanh,
+                      so_gio_chuan = :so_gio_chuan,
+                      hoc_ky = :hoc_ky,
+                      mo_ta = :mo_ta,
+                      thu_tu = :thu_tu,
+                      is_active = :is_active,
+                      updated_by = :updated_by
+                  WHERE mon_hoc_id = :id";
         
-        return ['success' => false, 'message' => 'Lỗi khi xóa môn học'];
+        $stmt = $this->db->prepare($query);
+        
+        $stmt->bindParam(':nghe_id', $data['nghe_id']);
+        $stmt->bindParam(':nien_khoa_id', $data['nien_khoa_id']);
+        $stmt->bindParam(':ma_mon_hoc', $data['ma_mon_hoc']);
+        $stmt->bindParam(':ten_mon_hoc', $data['ten_mon_hoc']);
+        $stmt->bindParam(':so_tin_chi', $data['so_tin_chi']);
+        $stmt->bindParam(':so_gio_ly_thuyet', $data['so_gio_ly_thuyet']);
+        $stmt->bindParam(':so_gio_thuc_hanh', $data['so_gio_thuc_hanh']);
+        $stmt->bindParam(':so_gio_chuan', $data['so_gio_chuan']);
+        $stmt->bindParam(':hoc_ky', $data['hoc_ky']);
+        $stmt->bindParam(':mo_ta', $data['mo_ta']);
+        $stmt->bindParam(':thu_tu', $data['thu_tu']);
+        $stmt->bindParam(':is_active', $data['is_active']);
+        $stmt->bindParam(':updated_by', $data['updated_by']);
+        $stmt->bindParam(':id', $id);
+        
+        return $stmt->execute();
+    }
+    
+    /**
+     * Xóa môn học
+     */
+    public function delete($id) {
+        if ($this->hasRelatedRecords($id)) return false;
+        
+        $query = "DELETE FROM {$this->table} WHERE mon_hoc_id = :id";
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':id', $id);
+        return $stmt->execute();
+    }
+    
+    /**
+     * Kiểm tra ràng buộc
+     */
+    public function hasRelatedRecords($id) {
+        $query = "SELECT COUNT(*) as count FROM hop_dong WHERE mon_hoc_id = :id";
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':id', $id);
+        $stmt->execute();
+        return $stmt->fetch(PDO::FETCH_ASSOC)['count'] > 0;
+    }
+    
+    /**
+     * Kiểm tra trùng mã
+     */
+    public function checkDuplicateMa($ma_mon_hoc, $nghe_id, $exclude_id = null) {
+        $query = "SELECT COUNT(*) as count FROM {$this->table} WHERE ma_mon_hoc = :ma_mon_hoc AND nghe_id = :nghe_id";
+        if ($exclude_id !== null) $query .= " AND mon_hoc_id != :exclude_id";
+        
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':ma_mon_hoc', $ma_mon_hoc);
+        $stmt->bindParam(':nghe_id', $nghe_id);
+        if ($exclude_id !== null) $stmt->bindParam(':exclude_id', $exclude_id);
+        
+        $stmt->execute();
+        return $stmt->fetch(PDO::FETCH_ASSOC)['count'] > 0;
+    }
+    
+    /**
+     * Lấy môn học theo nghề và niên khóa (cho dropdown)
+     */
+    public function getByNgheNienKhoa($nghe_id, $nien_khoa_id, $is_active = 1) {
+        $query = "SELECT mon_hoc_id, ma_mon_hoc, ten_mon_hoc, so_gio_chuan, hoc_ky
+                  FROM {$this->table}
+                  WHERE nghe_id = :nghe_id AND nien_khoa_id = :nien_khoa_id";
+        
+        if ($is_active !== null) $query .= " AND is_active = :is_active";
+        $query .= " ORDER BY hoc_ky ASC, thu_tu ASC, ten_mon_hoc ASC";
+        
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':nghe_id', $nghe_id);
+        $stmt->bindParam(':nien_khoa_id', $nien_khoa_id);
+        if ($is_active !== null) $stmt->bindParam(':is_active', $is_active);
+        
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
+    /**
+     * Cập nhật trạng thái
+     */
+    public function updateStatus($id, $is_active, $updated_by) {
+        $query = "UPDATE {$this->table} SET is_active = :is_active, updated_by = :updated_by WHERE mon_hoc_id = :id";
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':is_active', $is_active);
+        $stmt->bindParam(':updated_by', $updated_by);
+        $stmt->bindParam(':id', $id);
+        return $stmt->execute();
     }
 }

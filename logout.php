@@ -22,5 +22,5 @@ session_start();
 $_SESSION['success'] = 'Đã đăng xuất thành công';
 
 // Redirect về trang login
-header('Location: ' . (defined('BASE_URL') ? BASE_URL : '') . '/login.php');
+header('Location: ' . (defined('BASE_URL') ? BASE_URL : '') . './HDTG_Project/login.php');
 exit;

@@ -1,199 +1,291 @@
 <?php
-require_once __DIR__ . '/Model.php';
-
 /**
- * Nghe Model
- * TÊN CỘT DATABASE: nghe_id, khoa_id, ma_nghe, ten_nghe, mo_ta, so_nam_dao_tao, thu_tu, is_active
+ * Model: Nghe
+ * Quản lý các nghề đào tạo
  */
-class Nghe extends Model {
-    protected $table = 'nghe';
-    protected $primaryKey = 'nghe_id';
+
+class Nghe {
+    private $db;
+    
+    // Tên bảng
+    private $table = 'nghe';
+    
+    // Các cột
+    public $nghe_id;
+    public $khoa_id;
+    public $ma_nghe;
+    public $ten_nghe;
+    public $mo_ta;
+    public $so_nam_dao_tao;
+    public $thu_tu;
+    public $is_active;
+    public $created_by;
+    public $updated_by;
+    public $created_at;
+    public $updated_at;
     
     /**
-     * Lấy tất cả nghề với thông tin khoa
+     * Constructor
      */
-    public function getAllWithKhoa() {
-        $sql = "SELECT 
-                    n.nghe_id,
-                    n.khoa_id,
-                    n.ma_nghe,
-                    n.ten_nghe,
-                    n.mo_ta,
-                    n.so_nam_dao_tao,
-                    n.thu_tu,
-                    n.is_active,
-                    n.created_at,
-                    n.updated_at,
-                    k.ma_khoa,
-                    k.ten_khoa
-                FROM nghe n
-                LEFT JOIN khoa k ON n.khoa_id = k.khoa_id
-                ORDER BY k.ten_khoa ASC, n.thu_tu ASC, n.ten_nghe ASC";
+    public function __construct($db) {
+        $this->db = $db;
+    }
+    
+    /**
+     * Lấy tất cả nghề (có filter)
+     */
+    public function getAll($khoa_id = null, $is_active = null) {
+        $query = "SELECT n.*, k.ten_khoa, k.ma_khoa,
+                         u1.full_name as created_by_name,
+                         u2.full_name as updated_by_name
+                  FROM {$this->table} n
+                  LEFT JOIN khoa k ON n.khoa_id = k.khoa_id
+                  LEFT JOIN users u1 ON n.created_by = u1.user_id
+                  LEFT JOIN users u2 ON n.updated_by = u2.user_id
+                  WHERE 1=1";
         
-        $stmt = $this->db->prepare($sql);
+        if ($khoa_id !== null) {
+            $query .= " AND n.khoa_id = :khoa_id";
+        }
+        
+        if ($is_active !== null) {
+            $query .= " AND n.is_active = :is_active";
+        }
+        
+        $query .= " ORDER BY n.thu_tu ASC, n.ten_nghe ASC";
+        
+        $stmt = $this->db->prepare($query);
+        
+        if ($khoa_id !== null) {
+            $stmt->bindParam(':khoa_id', $khoa_id);
+        }
+        
+        if ($is_active !== null) {
+            $stmt->bindParam(':is_active', $is_active);
+        }
+        
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
     /**
-     * Lấy nghề theo ID với thông tin khoa
+     * Lấy nghề theo ID
      */
-    public function getByIdWithKhoa($id) {
-        $sql = "SELECT 
-                    n.*,
-                    k.ten_khoa
-                FROM nghe n
-                LEFT JOIN khoa k ON n.khoa_id = k.khoa_id
-                WHERE n.nghe_id = :id
-                LIMIT 1";
+    public function getById($id) {
+        $query = "SELECT n.*, k.ten_khoa, k.ma_khoa
+                  FROM {$this->table} n
+                  LEFT JOIN khoa k ON n.khoa_id = k.khoa_id
+                  WHERE n.nghe_id = :id
+                  LIMIT 1";
         
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':id', $id);
         $stmt->execute();
+        
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
     
     /**
-     * Lấy nghề theo khoa
+     * Tạo nghề mới
      */
-    public function getByKhoa($khoa_id) {
-        return $this->getAll(['khoa_id' => $khoa_id, 'is_active' => 1], 'thu_tu ASC, ten_nghe ASC');
-    }
-    
-    /**
-     * Kiểm tra mã nghề đã tồn tại trong khoa chưa
-     */
-    public function checkMaNgheExists($khoa_id, $ma_nghe, $exclude_id = null) {
-        $sql = "SELECT COUNT(*) FROM nghe WHERE khoa_id = :khoa_id AND ma_nghe = :ma_nghe";
+    public function create($data) {
+        $query = "INSERT INTO {$this->table} 
+                  (khoa_id, ma_nghe, ten_nghe, mo_ta, so_nam_dao_tao, thu_tu, is_active, created_by)
+                  VALUES 
+                  (:khoa_id, :ma_nghe, :ten_nghe, :mo_ta, :so_nam_dao_tao, :thu_tu, :is_active, :created_by)";
         
-        if ($exclude_id) {
-            $sql .= " AND nghe_id != :exclude_id";
-        }
+        $stmt = $this->db->prepare($query);
         
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':khoa_id', $khoa_id, PDO::PARAM_INT);
-        $stmt->bindValue(':ma_nghe', $ma_nghe);
-        
-        if ($exclude_id) {
-            $stmt->bindValue(':exclude_id', $exclude_id, PDO::PARAM_INT);
-        }
-        
-        $stmt->execute();
-        return $stmt->fetchColumn() > 0;
-    }
-    
-    /**
-     * Đếm số lớp thuộc nghề
-     */
-    public function countLop($nghe_id) {
-        $sql = "SELECT COUNT(*) FROM lop WHERE nghe_id = :nghe_id";
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':nghe_id', $nghe_id, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchColumn();
-    }
-    
-    /**
-     * Đếm số môn học thuộc nghề
-     */
-    public function countMonHoc($nghe_id) {
-        $sql = "SELECT COUNT(*) FROM mon_hoc WHERE nghe_id = :nghe_id";
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':nghe_id', $nghe_id, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchColumn();
-    }
-    
-    /**
-     * Thêm nghề mới - TÊN CỘT CHÍNH XÁC
-     */
-    public function createNghe($data) {
-        $sql = "INSERT INTO nghe (
-                    khoa_id,
-                    ma_nghe,
-                    ten_nghe,
-                    mo_ta,
-                    so_nam_dao_tao,
-                    thu_tu,
-                    is_active,
-                    created_by
-                ) VALUES (
-                    :khoa_id,
-                    :ma_nghe,
-                    :ten_nghe,
-                    :mo_ta,
-                    :so_nam_dao_tao,
-                    :thu_tu,
-                    :is_active,
-                    :created_by
-                )";
-        
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':khoa_id', $data['khoa_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':ma_nghe', $data['ma_nghe']);
-        $stmt->bindValue(':ten_nghe', $data['ten_nghe']);
-        $stmt->bindValue(':mo_ta', $data['mo_ta'] ?? null);
-        $stmt->bindValue(':so_nam_dao_tao', $data['so_nam_dao_tao'] ?? null, PDO::PARAM_INT);
-        $stmt->bindValue(':thu_tu', $data['thu_tu'] ?? 0, PDO::PARAM_INT);
-        $stmt->bindValue(':is_active', $data['is_active'] ?? 1, PDO::PARAM_INT);
-        $stmt->bindValue(':created_by', $_SESSION['user_id'], PDO::PARAM_INT);
-        
-        return $stmt->execute();
-    }
-    
-    /**
-     * Cập nhật nghề - TÊN CỘT CHÍNH XÁC
-     */
-    public function updateNghe($id, $data) {
-        $sql = "UPDATE nghe SET
-                    khoa_id = :khoa_id,
-                    ma_nghe = :ma_nghe,
-                    ten_nghe = :ten_nghe,
-                    mo_ta = :mo_ta,
-                    so_nam_dao_tao = :so_nam_dao_tao,
-                    thu_tu = :thu_tu,
-                    is_active = :is_active,
-                    updated_by = :updated_by
-                WHERE nghe_id = :id";
-        
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':khoa_id', $data['khoa_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':ma_nghe', $data['ma_nghe']);
-        $stmt->bindValue(':ten_nghe', $data['ten_nghe']);
-        $stmt->bindValue(':mo_ta', $data['mo_ta'] ?? null);
-        $stmt->bindValue(':so_nam_dao_tao', $data['so_nam_dao_tao'] ?? null, PDO::PARAM_INT);
-        $stmt->bindValue(':thu_tu', $data['thu_tu'] ?? 0, PDO::PARAM_INT);
-        $stmt->bindValue(':is_active', $data['is_active'] ?? 1, PDO::PARAM_INT);
-        $stmt->bindValue(':updated_by', $_SESSION['user_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
-        
-        return $stmt->execute();
-    }
-    
-    /**
-     * Xóa nghề (soft delete)
-     */
-    public function deleteNghe($id) {
-        // Kiểm tra có lớp nào không
-        if ($this->countLop($id) > 0) {
-            return ['success' => false, 'message' => 'Không thể xóa nghề vì có lớp liên quan'];
-        }
-        
-        // Kiểm tra có môn học nào không
-        if ($this->countMonHoc($id) > 0) {
-            return ['success' => false, 'message' => 'Không thể xóa nghề vì có môn học liên quan'];
-        }
-        
-        // Xóa
-        $sql = "UPDATE nghe SET is_active = 0, updated_by = :updated_by WHERE nghe_id = :id";
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':updated_by', $_SESSION['user_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        // Bind values
+        $stmt->bindParam(':khoa_id', $data['khoa_id']);
+        $stmt->bindParam(':ma_nghe', $data['ma_nghe']);
+        $stmt->bindParam(':ten_nghe', $data['ten_nghe']);
+        $stmt->bindParam(':mo_ta', $data['mo_ta']);
+        $stmt->bindParam(':so_nam_dao_tao', $data['so_nam_dao_tao']);
+        $stmt->bindParam(':thu_tu', $data['thu_tu']);
+        $stmt->bindParam(':is_active', $data['is_active']);
+        $stmt->bindParam(':created_by', $data['created_by']);
         
         if ($stmt->execute()) {
-            return ['success' => true, 'message' => 'Xóa nghề thành công'];
+            return $this->db->lastInsertId();
         }
         
-        return ['success' => false, 'message' => 'Lỗi khi xóa nghề'];
+        return false;
+    }
+    
+    /**
+     * Cập nhật nghề
+     */
+    public function update($id, $data) {
+        $query = "UPDATE {$this->table}
+                  SET khoa_id = :khoa_id,
+                      ma_nghe = :ma_nghe,
+                      ten_nghe = :ten_nghe,
+                      mo_ta = :mo_ta,
+                      so_nam_dao_tao = :so_nam_dao_tao,
+                      thu_tu = :thu_tu,
+                      is_active = :is_active,
+                      updated_by = :updated_by
+                  WHERE nghe_id = :id";
+        
+        $stmt = $this->db->prepare($query);
+        
+        // Bind values
+        $stmt->bindParam(':khoa_id', $data['khoa_id']);
+        $stmt->bindParam(':ma_nghe', $data['ma_nghe']);
+        $stmt->bindParam(':ten_nghe', $data['ten_nghe']);
+        $stmt->bindParam(':mo_ta', $data['mo_ta']);
+        $stmt->bindParam(':so_nam_dao_tao', $data['so_nam_dao_tao']);
+        $stmt->bindParam(':thu_tu', $data['thu_tu']);
+        $stmt->bindParam(':is_active', $data['is_active']);
+        $stmt->bindParam(':updated_by', $data['updated_by']);
+        $stmt->bindParam(':id', $id);
+        
+        return $stmt->execute();
+    }
+    
+    /**
+     * Xóa nghề
+     */
+    public function delete($id) {
+        // Kiểm tra ràng buộc trước khi xóa
+        if ($this->hasRelatedRecords($id)) {
+            return false;
+        }
+        
+        $query = "DELETE FROM {$this->table} WHERE nghe_id = :id";
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':id', $id);
+        
+        return $stmt->execute();
+    }
+    
+    /**
+     * Kiểm tra xem nghề có ràng buộc với bảng khác không
+     */
+    public function hasRelatedRecords($id) {
+        // Kiểm tra niên khóa
+        $query = "SELECT COUNT(*) as count FROM nien_khoa WHERE nghe_id = :id";
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':id', $id);
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($result['count'] > 0) {
+            return true;
+        }
+        
+        // Kiểm tra lớp
+        $query = "SELECT COUNT(*) as count FROM lop WHERE nghe_id = :id";
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':id', $id);
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($result['count'] > 0) {
+            return true;
+        }
+        
+        // Kiểm tra môn học
+        $query = "SELECT COUNT(*) as count FROM mon_hoc WHERE nghe_id = :id";
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':id', $id);
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($result['count'] > 0) {
+            return true;
+        }
+        
+        // Kiểm tra hợp đồng
+        $query = "SELECT COUNT(*) as count FROM hop_dong WHERE nghe_id = :id";
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':id', $id);
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($result['count'] > 0) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Kiểm tra trùng mã nghề
+     */
+    public function checkDuplicateMa($ma_nghe, $khoa_id, $exclude_id = null) {
+        $query = "SELECT COUNT(*) as count 
+                  FROM {$this->table} 
+                  WHERE ma_nghe = :ma_nghe 
+                  AND khoa_id = :khoa_id";
+        
+        if ($exclude_id !== null) {
+            $query .= " AND nghe_id != :exclude_id";
+        }
+        
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':ma_nghe', $ma_nghe);
+        $stmt->bindParam(':khoa_id', $khoa_id);
+        
+        if ($exclude_id !== null) {
+            $stmt->bindParam(':exclude_id', $exclude_id);
+        }
+        
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result['count'] > 0;
+    }
+    
+    /**
+     * Đếm số lượng nghề theo khoa
+     */
+    public function countByKhoa($khoa_id) {
+        $query = "SELECT COUNT(*) as count FROM {$this->table} WHERE khoa_id = :khoa_id";
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':khoa_id', $khoa_id);
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result['count'];
+    }
+    
+    /**
+     * Lấy nghề theo khoa (dùng cho dropdown)
+     */
+    public function getByKhoa($khoa_id, $is_active = 1) {
+        $query = "SELECT nghe_id, ma_nghe, ten_nghe, so_nam_dao_tao
+                  FROM {$this->table}
+                  WHERE khoa_id = :khoa_id";
+        
+        if ($is_active !== null) {
+            $query .= " AND is_active = :is_active";
+        }
+        
+        $query .= " ORDER BY thu_tu ASC, ten_nghe ASC";
+        
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':khoa_id', $khoa_id);
+        
+        if ($is_active !== null) {
+            $stmt->bindParam(':is_active', $is_active);
+        }
+        
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
+    /**
+     * Cập nhật trạng thái
+     */
+    public function updateStatus($id, $is_active, $updated_by) {
+        $query = "UPDATE {$this->table}
+                  SET is_active = :is_active,
+                      updated_by = :updated_by
+                  WHERE nghe_id = :id";
+        
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':is_active', $is_active);
+        $stmt->bindParam(':updated_by', $updated_by);
+        $stmt->bindParam(':id', $id);
+        
+        return $stmt->execute();
     }
 }
