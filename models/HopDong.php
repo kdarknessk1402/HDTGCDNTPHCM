@@ -1,200 +1,228 @@
 <?php
-require_once __DIR__ . '/Model.php';
-
 /**
- * HopDong Model
- * TÊN CỘT DATABASE: hop_dong_id, so_hop_dong, nam_hop_dong, ngay_hop_dong, thang_hop_dong,
- * giang_vien_id, mon_hoc_id, nghe_id, lop_id, nien_khoa_id, cap_do_id, co_so_id,
- * ngay_bat_dau, ngay_ket_thuc, tong_gio_mon_hoc, don_gia_gio, tong_tien, tong_tien_chu,
- * da_thanh_toan, ngay_thanh_toan, hinh_thuc_thanh_toan, trang_thai, 
- * file_hop_dong, file_bien_ban_giao_nhan, ghi_chu, ly_do_huy
+ * Model: HopDong
+ * File: models/HopDong.php
+ * Quản lý hợp đồng thỉnh giảng
  */
-class HopDong extends Model {
-    protected $table = 'hop_dong';
-    protected $primaryKey = 'hop_dong_id';
+
+class HopDong {
+    private $db;
+    private $table = 'hop_dong';
     
-    /**
-     * Lấy tất cả hợp đồng với thông tin chi tiết
-     */
-    public function getAllWithDetails($conditions = []) {
-        $sql = "SELECT 
-                    hd.*,
-                    gv.ma_giang_vien,
-                    gv.ten_giang_vien,
-                    gv.so_dien_thoai as sdt_giang_vien,
-                    mh.ma_mon_hoc,
-                    mh.ten_mon_hoc,
-                    n.ma_nghe,
-                    n.ten_nghe,
-                    l.ma_lop,
-                    l.ten_lop,
-                    k.ma_khoa,
-                    k.ten_khoa,
-                    cs.ma_co_so,
-                    cs.ten_co_so,
-                    cd.ten_cap_do,
-                    u.full_name as nguoi_tao
-                FROM hop_dong hd
-                LEFT JOIN giang_vien gv ON hd.giang_vien_id = gv.giang_vien_id
-                LEFT JOIN mon_hoc mh ON hd.mon_hoc_id = mh.mon_hoc_id
-                LEFT JOIN nghe n ON hd.nghe_id = n.nghe_id
-                LEFT JOIN lop l ON hd.lop_id = l.lop_id
-                LEFT JOIN khoa k ON n.khoa_id = k.khoa_id
-                LEFT JOIN co_so cs ON hd.co_so_id = cs.co_so_id
-                LEFT JOIN cap_do_giang_day cd ON hd.cap_do_id = cd.cap_do_id
-                LEFT JOIN users u ON hd.created_by = u.user_id";
+    public function __construct($db) {
+        $this->db = $db;
+    }
+    
+    public function getAll($filters = []) {
+        $query = "SELECT hd.*,
+                         gv.ma_giang_vien, gv.ten_giang_vien, gv.so_dien_thoai,
+                         mh.ma_mon_hoc, mh.ten_mon_hoc,
+                         l.ma_lop, l.ten_lop,
+                         n.ma_nghe, n.ten_nghe,
+                         nk.ma_nien_khoa, nk.ten_nien_khoa,
+                         cs.ma_co_so, cs.ten_co_so,
+                         cd.ten_cap_do,
+                         k.ten_khoa
+                  FROM {$this->table} hd
+                  LEFT JOIN giang_vien gv ON hd.giang_vien_id = gv.giang_vien_id
+                  LEFT JOIN mon_hoc mh ON hd.mon_hoc_id = mh.mon_hoc_id
+                  LEFT JOIN lop l ON hd.lop_id = l.lop_id
+                  LEFT JOIN nghe n ON hd.nghe_id = n.nghe_id
+                  LEFT JOIN nien_khoa nk ON hd.nien_khoa_id = nk.nien_khoa_id
+                  LEFT JOIN co_so cs ON hd.co_so_id = cs.co_so_id
+                  LEFT JOIN cap_do_giang_day cd ON hd.cap_do_id = cd.cap_do_id
+                  LEFT JOIN khoa k ON n.khoa_id = k.khoa_id
+                  WHERE 1=1";
         
-        if (!empty($conditions)) {
-            $where = [];
-            foreach ($conditions as $key => $value) {
-                $where[] = "$key = :$key";
-            }
-            $sql .= " WHERE " . implode(' AND ', $where);
+        $params = [];
+        
+        if (!empty($filters['khoa_id'])) {
+            $query .= " AND n.khoa_id = :khoa_id";
+            $params[':khoa_id'] = $filters['khoa_id'];
         }
         
-        $sql .= " ORDER BY hd.ngay_hop_dong DESC, hd.created_at DESC";
-        
-        $stmt = $this->db->prepare($sql);
-        
-        if (!empty($conditions)) {
-            foreach ($conditions as $key => $value) {
-                $stmt->bindValue(":$key", $value);
-            }
+        if (!empty($filters['giang_vien_id'])) {
+            $query .= " AND hd.giang_vien_id = :giang_vien_id";
+            $params[':giang_vien_id'] = $filters['giang_vien_id'];
         }
         
-        $stmt->execute();
+        if (!empty($filters['trang_thai'])) {
+            $query .= " AND hd.trang_thai = :trang_thai";
+            $params[':trang_thai'] = $filters['trang_thai'];
+        }
+        
+        if (!empty($filters['nam_hop_dong'])) {
+            $query .= " AND hd.nam_hop_dong = :nam_hop_dong";
+            $params[':nam_hop_dong'] = $filters['nam_hop_dong'];
+        }
+        
+        if (!empty($filters['thang_hop_dong'])) {
+            $query .= " AND hd.thang_hop_dong = :thang_hop_dong";
+            $params[':thang_hop_dong'] = $filters['thang_hop_dong'];
+        }
+        
+        $query .= " ORDER BY hd.created_at DESC";
+        
+        $stmt = $this->db->prepare($query);
+        $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
-    /**
-     * Lấy hợp đồng theo ID với thông tin đầy đủ
-     */
-    public function getByIdWithFullDetails($id) {
-        $sql = "SELECT * FROM v_hop_dong_chi_tiet WHERE hop_dong_id = :id LIMIT 1";
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+    public function getById($id) {
+        $query = "SELECT hd.*,
+                         gv.ten_giang_vien, gv.so_dien_thoai, gv.email, gv.dia_chi,
+                         gv.so_tai_khoan, gv.ten_ngan_hang, gv.chu_tai_khoan,
+                         mh.ten_mon_hoc, mh.tong_so_tiet,
+                         l.ten_lop, n.ten_nghe, nk.ten_nien_khoa,
+                         cs.ten_co_so, cd.ten_cap_do, k.ten_khoa
+                  FROM {$this->table} hd
+                  LEFT JOIN giang_vien gv ON hd.giang_vien_id = gv.giang_vien_id
+                  LEFT JOIN mon_hoc mh ON hd.mon_hoc_id = mh.mon_hoc_id
+                  LEFT JOIN lop l ON hd.lop_id = l.lop_id
+                  LEFT JOIN nghe n ON hd.nghe_id = n.nghe_id
+                  LEFT JOIN nien_khoa nk ON hd.nien_khoa_id = nk.nien_khoa_id
+                  LEFT JOIN co_so cs ON hd.co_so_id = cs.co_so_id
+                  LEFT JOIN cap_do_giang_day cd ON hd.cap_do_id = cd.cap_do_id
+                  LEFT JOIN khoa k ON n.khoa_id = k.khoa_id
+                  WHERE hd.hop_dong_id = :id LIMIT 1";
+        
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':id', $id);
         $stmt->execute();
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
     
-    /**
-     * Lấy hợp đồng theo khoa
-     */
-    public function getByKhoa($khoa_id, $conditions = []) {
-        $conditions['k.khoa_id'] = $khoa_id;
-        return $this->getAllWithDetails($conditions);
-    }
-    
-    /**
-     * Tạo hợp đồng mới - TÊN CỘT CHÍNH XÁC
-     */
-    public function createHopDong($data) {
-        $sql = "INSERT INTO hop_dong (
-                    so_hop_dong, nam_hop_dong, ngay_hop_dong, thang_hop_dong,
-                    giang_vien_id, mon_hoc_id, nghe_id, lop_id, nien_khoa_id,
-                    cap_do_id, co_so_id, ngay_bat_dau, ngay_ket_thuc,
-                    tong_gio_mon_hoc, don_gia_gio, tong_tien, tong_tien_chu,
-                    da_thanh_toan, trang_thai, ghi_chu, created_by
-                ) VALUES (
-                    :so_hop_dong, :nam_hop_dong, :ngay_hop_dong, :thang_hop_dong,
-                    :giang_vien_id, :mon_hoc_id, :nghe_id, :lop_id, :nien_khoa_id,
-                    :cap_do_id, :co_so_id, :ngay_bat_dau, :ngay_ket_thuc,
-                    :tong_gio_mon_hoc, :don_gia_gio, :tong_tien, :tong_tien_chu,
-                    :da_thanh_toan, :trang_thai, :ghi_chu, :created_by
-                )";
+    public function create($data) {
+        $query = "INSERT INTO {$this->table}
+                  (so_hop_dong, nam_hop_dong, ngay_hop_dong, thang_hop_dong,
+                   giang_vien_id, mon_hoc_id, nghe_id, lop_id, nien_khoa_id,
+                   cap_do_id, co_so_id, ngay_bat_dau, ngay_ket_thuc,
+                   tong_gio_mon_hoc, don_gia_gio, tong_tien, tong_tien_chu,
+                   da_thanh_toan, ngay_thanh_toan, hinh_thuc_thanh_toan,
+                   trang_thai, file_hop_dong, file_bien_ban_giao_nhan,
+                   ghi_chu, created_by)
+                  VALUES
+                  (:so_hop_dong, :nam_hop_dong, :ngay_hop_dong, :thang_hop_dong,
+                   :giang_vien_id, :mon_hoc_id, :nghe_id, :lop_id, :nien_khoa_id,
+                   :cap_do_id, :co_so_id, :ngay_bat_dau, :ngay_ket_thuc,
+                   :tong_gio_mon_hoc, :don_gia_gio, :tong_tien, :tong_tien_chu,
+                   :da_thanh_toan, :ngay_thanh_toan, :hinh_thuc_thanh_toan,
+                   :trang_thai, :file_hop_dong, :file_bien_ban_giao_nhan,
+                   :ghi_chu, :created_by)";
         
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->db->prepare($query);
         
-        $stmt->bindValue(':so_hop_dong', $data['so_hop_dong'] ?? null);
-        $stmt->bindValue(':nam_hop_dong', $data['nam_hop_dong'] ?? date('Y'), PDO::PARAM_INT);
-        $stmt->bindValue(':ngay_hop_dong', $data['ngay_hop_dong']);
-        $stmt->bindValue(':thang_hop_dong', $data['thang_hop_dong'] ?? date('n'), PDO::PARAM_INT);
-        $stmt->bindValue(':giang_vien_id', $data['giang_vien_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':mon_hoc_id', $data['mon_hoc_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':nghe_id', $data['nghe_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':lop_id', $data['lop_id'] ?? null, PDO::PARAM_INT);
-        $stmt->bindValue(':nien_khoa_id', $data['nien_khoa_id'] ?? null, PDO::PARAM_INT);
-        $stmt->bindValue(':cap_do_id', $data['cap_do_id'] ?? null, PDO::PARAM_INT);
-        $stmt->bindValue(':co_so_id', $data['co_so_id'] ?? null, PDO::PARAM_INT);
-        $stmt->bindValue(':ngay_bat_dau', $data['ngay_bat_dau']);
-        $stmt->bindValue(':ngay_ket_thuc', $data['ngay_ket_thuc']);
-        $stmt->bindValue(':tong_gio_mon_hoc', $data['tong_gio_mon_hoc'], PDO::PARAM_INT);
-        $stmt->bindValue(':don_gia_gio', $data['don_gia_gio'], PDO::PARAM_INT);
-        $stmt->bindValue(':tong_tien', $data['tong_tien'], PDO::PARAM_INT);
-        $stmt->bindValue(':tong_tien_chu', $data['tong_tien_chu'] ?? null);
-        $stmt->bindValue(':da_thanh_toan', $data['da_thanh_toan'] ?? 0, PDO::PARAM_INT);
-        $stmt->bindValue(':trang_thai', $data['trang_thai'] ?? 'Mới tạo');
-        $stmt->bindValue(':ghi_chu', $data['ghi_chu'] ?? null);
-        $stmt->bindValue(':created_by', $_SESSION['user_id'], PDO::PARAM_INT);
+        foreach ($data as $key => $value) {
+            $stmt->bindValue(":$key", $value);
+        }
         
         if ($stmt->execute()) {
             return $this->db->lastInsertId();
         }
-        
         return false;
     }
     
-    /**
-     * Cập nhật hợp đồng - TÊN CỘT CHÍNH XÁC
-     */
-    public function updateHopDong($id, $data) {
-        $sql = "UPDATE hop_dong SET
-                    giang_vien_id = :giang_vien_id,
-                    mon_hoc_id = :mon_hoc_id,
-                    nghe_id = :nghe_id,
-                    lop_id = :lop_id,
-                    nien_khoa_id = :nien_khoa_id,
-                    cap_do_id = :cap_do_id,
-                    co_so_id = :co_so_id,
-                    ngay_hop_dong = :ngay_hop_dong,
-                    ngay_bat_dau = :ngay_bat_dau,
-                    ngay_ket_thuc = :ngay_ket_thuc,
-                    tong_gio_mon_hoc = :tong_gio_mon_hoc,
-                    don_gia_gio = :don_gia_gio,
-                    tong_tien = :tong_tien,
-                    tong_tien_chu = :tong_tien_chu,
-                    trang_thai = :trang_thai,
-                    ghi_chu = :ghi_chu,
-                    updated_by = :updated_by
-                WHERE hop_dong_id = :id";
+    public function update($id, $data) {
+        $query = "UPDATE {$this->table}
+                  SET so_hop_dong = :so_hop_dong,
+                      nam_hop_dong = :nam_hop_dong,
+                      ngay_hop_dong = :ngay_hop_dong,
+                      thang_hop_dong = :thang_hop_dong,
+                      giang_vien_id = :giang_vien_id,
+                      mon_hoc_id = :mon_hoc_id,
+                      nghe_id = :nghe_id,
+                      lop_id = :lop_id,
+                      nien_khoa_id = :nien_khoa_id,
+                      cap_do_id = :cap_do_id,
+                      co_so_id = :co_so_id,
+                      ngay_bat_dau = :ngay_bat_dau,
+                      ngay_ket_thuc = :ngay_ket_thuc,
+                      tong_gio_mon_hoc = :tong_gio_mon_hoc,
+                      don_gia_gio = :don_gia_gio,
+                      tong_tien = :tong_tien,
+                      tong_tien_chu = :tong_tien_chu,
+                      da_thanh_toan = :da_thanh_toan,
+                      ngay_thanh_toan = :ngay_thanh_toan,
+                      hinh_thuc_thanh_toan = :hinh_thuc_thanh_toan,
+                      trang_thai = :trang_thai,
+                      file_hop_dong = :file_hop_dong,
+                      file_bien_ban_giao_nhan = :file_bien_ban_giao_nhan,
+                      ghi_chu = :ghi_chu,
+                      updated_by = :updated_by
+                  WHERE hop_dong_id = :id";
         
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->db->prepare($query);
         
-        $stmt->bindValue(':giang_vien_id', $data['giang_vien_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':mon_hoc_id', $data['mon_hoc_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':nghe_id', $data['nghe_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':lop_id', $data['lop_id'] ?? null, PDO::PARAM_INT);
-        $stmt->bindValue(':nien_khoa_id', $data['nien_khoa_id'] ?? null, PDO::PARAM_INT);
-        $stmt->bindValue(':cap_do_id', $data['cap_do_id'] ?? null, PDO::PARAM_INT);
-        $stmt->bindValue(':co_so_id', $data['co_so_id'] ?? null, PDO::PARAM_INT);
-        $stmt->bindValue(':ngay_hop_dong', $data['ngay_hop_dong']);
-        $stmt->bindValue(':ngay_bat_dau', $data['ngay_bat_dau']);
-        $stmt->bindValue(':ngay_ket_thuc', $data['ngay_ket_thuc']);
-        $stmt->bindValue(':tong_gio_mon_hoc', $data['tong_gio_mon_hoc'], PDO::PARAM_INT);
-        $stmt->bindValue(':don_gia_gio', $data['don_gia_gio'], PDO::PARAM_INT);
-        $stmt->bindValue(':tong_tien', $data['tong_tien'], PDO::PARAM_INT);
-        $stmt->bindValue(':tong_tien_chu', $data['tong_tien_chu'] ?? null);
-        $stmt->bindValue(':trang_thai', $data['trang_thai']);
-        $stmt->bindValue(':ghi_chu', $data['ghi_chu'] ?? null);
-        $stmt->bindValue(':updated_by', $_SESSION['user_id'], PDO::PARAM_INT);
-        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        foreach ($data as $key => $value) {
+            $stmt->bindValue(":$key", $value);
+        }
+        $stmt->bindValue(':id', $id);
         
         return $stmt->execute();
     }
     
-    /**
-     * Xóa hợp đồng
-     */
-    public function deleteHopDong($id) {
-        // Xóa thật (có thể thay bằng soft delete nếu cần)
-        $sql = "DELETE FROM hop_dong WHERE hop_dong_id = :id";
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+    public function delete($id) {
+        $query = "DELETE FROM {$this->table} WHERE hop_dong_id = :id";
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':id', $id);
+        return $stmt->execute();
+    }
+    
+    public function approve($id, $approved_by) {
+        $query = "UPDATE {$this->table}
+                  SET trang_thai = 'Đã duyệt',
+                      approved_by = :approved_by,
+                      approved_at = NOW()
+                  WHERE hop_dong_id = :id";
         
-        if ($stmt->execute()) {
-            return ['success' => true, 'message' => 'Xóa hợp đồng thành công'];
-        }
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':id', $id);
+        $stmt->bindParam(':approved_by', $approved_by);
+        return $stmt->execute();
+    }
+    
+    public function cancel($id, $ly_do_huy, $updated_by) {
+        $query = "UPDATE {$this->table}
+                  SET trang_thai = 'Hủy',
+                      ly_do_huy = :ly_do_huy,
+                      updated_by = :updated_by
+                  WHERE hop_dong_id = :id";
         
-        return ['success' => false, 'message' => 'Lỗi khi xóa hợp đồng'];
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':id', $id);
+        $stmt->bindParam(':ly_do_huy', $ly_do_huy);
+        $stmt->bindParam(':updated_by', $updated_by);
+        return $stmt->execute();
+    }
+    
+    public function updateTrangThai($id, $trang_thai, $updated_by) {
+        $query = "UPDATE {$this->table}
+                  SET trang_thai = :trang_thai,
+                      updated_by = :updated_by
+                  WHERE hop_dong_id = :id";
+        
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':id', $id);
+        $stmt->bindParam(':trang_thai', $trang_thai);
+        $stmt->bindParam(':updated_by', $updated_by);
+        return $stmt->execute();
+    }
+    
+    public function updateThanhToan($id, $data) {
+        $query = "UPDATE {$this->table}
+                  SET da_thanh_toan = :da_thanh_toan,
+                      ngay_thanh_toan = :ngay_thanh_toan,
+                      hinh_thuc_thanh_toan = :hinh_thuc_thanh_toan,
+                      updated_by = :updated_by
+                  WHERE hop_dong_id = :id";
+        
+        $stmt = $this->db->prepare($query);
+        $stmt->bindValue(':da_thanh_toan', $data['da_thanh_toan']);
+        $stmt->bindValue(':ngay_thanh_toan', $data['ngay_thanh_toan']);
+        $stmt->bindValue(':hinh_thuc_thanh_toan', $data['hinh_thuc_thanh_toan']);
+        $stmt->bindValue(':updated_by', $data['updated_by']);
+        $stmt->bindValue(':id', $id);
+        
+        return $stmt->execute();
     }
 }

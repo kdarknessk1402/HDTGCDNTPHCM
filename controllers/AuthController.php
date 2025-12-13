@@ -1,153 +1,162 @@
 <?php
-require_once __DIR__ . '/Controller.php';
-
 /**
- * AuthController - Xử lý đăng nhập/đăng xuất
- * File: /controllers/AuthController.php
+ * Controller: Authentication
+ * File: controllers/AuthController.php
+ * Xử lý đăng nhập, đăng xuất
  */
-class AuthController extends Controller {
+
+class AuthController {
+    private $db;
     
-    private $userModel;
-    
-    public function __construct() {
-        $this->userModel = $this->model('User');
+    public function __construct($db) {
+        $this->db = $db;
     }
     
     /**
-     * Hiển thị trang đăng nhập
+     * Hiển thị form login
      */
-    public function login() {
-        // Nếu đã đăng nhập, chuyển về trang chủ
+    public function showLogin() {
         if (isLoggedIn()) {
-            $this->redirect('index.php');
+            redirect('/dashboard');
+            return;
         }
         
-        $this->view('auth/login', [
-            'title' => 'Đăng nhập'
-        ]);
+        require_once __DIR__ . '/../views/auth/login.php';
     }
     
     /**
      * Xử lý đăng nhập
      */
-    public function handleLogin() {
+    public function login() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('login.php');
+            redirect('/login');
+            return;
         }
         
-        $username = sanitize($this->post('username'));
-        $password = $this->post('password');
+        $username = trim($_POST['username'] ?? '');
+        $password = trim($_POST['password'] ?? '');
         
-        // Validate
         if (empty($username) || empty($password)) {
-            $this->setFlash('Vui lòng nhập đầy đủ thông tin', 'danger');
-            $this->redirect('login.php');
+            setFlashMessage('error', 'Vui lòng nhập đầy đủ thông tin!');
+            redirect('/login');
+            return;
         }
         
-        // Attempt login
-        $user = $this->userModel->login($username, $password);
+        // Lấy thông tin user
+        $query = "SELECT u.*, r.role_name 
+                  FROM users u 
+                  LEFT JOIN roles r ON u.role_id = r.role_id
+                  WHERE u.username = :username AND u.is_active = 1";
         
-        if ($user) {
-            // Set session - TÊN CỘT CHÍNH XÁC
-            $_SESSION['user_id'] = $user['user_id'];
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['full_name'] = $user['full_name'];
-            $_SESSION['email'] = $user['email'];
-            $_SESSION['phone'] = $user['phone'];
-            $_SESSION['role_id'] = $user['role_id'];
-            $_SESSION['role_name'] = $user['role_name'];
-            $_SESSION['role_display_name'] = $user['role_display_name'];
-            $_SESSION['khoa_id'] = $user['khoa_id'];
-            $_SESSION['ten_khoa'] = $user['ten_khoa'] ?? null;
-            
-            // Update last login
-            $this->userModel->updateLastLogin($user['user_id']);
-            
-            $this->setFlash('Đăng nhập thành công! Xin chào ' . $user['full_name'], 'success');
-            $this->redirect('index.php');
-        } else {
-            $this->setFlash('Tên đăng nhập hoặc mật khẩu không đúng', 'danger');
-            $this->redirect('login.php');
+        $stmt = $this->db->prepare($query);
+        $stmt->execute([':username' => $username]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$user) {
+            setFlashMessage('error', 'Tài khoản không tồn tại hoặc đã bị khóa!');
+            redirect('/login');
+            return;
         }
+        
+        // Verify password (bcrypt)
+        if (!password_verify($password, $user['password'])) {
+            setFlashMessage('error', 'Mật khẩu không chính xác!');
+            redirect('/login');
+            return;
+        }
+        
+        // Lưu session
+        $_SESSION['user_id'] = $user['user_id'];
+        $_SESSION['username'] = $user['username'];
+        $_SESSION['full_name'] = $user['full_name'];
+        $_SESSION['role'] = $user['role_name'];
+        $_SESSION['khoa_id'] = $user['khoa_id'];
+        
+        // Update last_login
+        $updateQuery = "UPDATE users SET last_login = NOW() WHERE user_id = :user_id";
+        $updateStmt = $this->db->prepare($updateQuery);
+        $updateStmt->execute([':user_id' => $user['user_id']]);
+        
+        // Log activity
+        logActivity($user['user_id'], 'Đăng nhập', 'users', $user['user_id']);
+        
+        setFlashMessage('success', 'Đăng nhập thành công!');
+        redirect('/dashboard');
     }
     
     /**
      * Đăng xuất
      */
     public function logout() {
-        // Xóa tất cả session
-        $_SESSION = array();
-        
-        // Hủy session cookie
-        if (isset($_COOKIE[session_name()])) {
-            setcookie(session_name(), '', time()-42000, '/');
+        if (isLoggedIn()) {
+            logActivity(getUserId(), 'Đăng xuất', 'users', getUserId());
         }
         
-        // Hủy session
         session_destroy();
-        
-        // Khởi động lại session để hiển thị thông báo
-        session_start();
-        $this->setFlash('Đã đăng xuất thành công', 'success');
-        $this->redirect('login.php');
+        setFlashMessage('success', 'Đã đăng xuất!');
+        redirect('/login');
     }
     
     /**
-     * Change password
+     * Đổi mật khẩu
      */
     public function changePassword() {
-        $this->requireAuth();
+        if (!isLoggedIn()) {
+            redirect('/login');
+            return;
+        }
         
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $currentPassword = $this->post('current_password');
-            $newPassword = $this->post('new_password');
-            $confirmPassword = $this->post('confirm_password');
+            $old_password = trim($_POST['old_password'] ?? '');
+            $new_password = trim($_POST['new_password'] ?? '');
+            $confirm_password = trim($_POST['confirm_password'] ?? '');
             
-            // Validate
-            $errors = [];
-            
-            if (empty($currentPassword)) {
-                $errors[] = 'Vui lòng nhập mật khẩu hiện tại';
+            if (empty($old_password) || empty($new_password) || empty($confirm_password)) {
+                setFlashMessage('error', 'Vui lòng nhập đầy đủ thông tin!');
+                redirect('/change-password');
+                return;
             }
             
-            if (empty($newPassword)) {
-                $errors[] = 'Vui lòng nhập mật khẩu mới';
+            if ($new_password !== $confirm_password) {
+                setFlashMessage('error', 'Mật khẩu mới không khớp!');
+                redirect('/change-password');
+                return;
             }
             
-            if (strlen($newPassword) < MIN_PASSWORD_LENGTH) {
-                $errors[] = 'Mật khẩu mới phải có ít nhất ' . MIN_PASSWORD_LENGTH . ' ký tự';
+            if (strlen($new_password) < 6) {
+                setFlashMessage('error', 'Mật khẩu mới phải ít nhất 6 ký tự!');
+                redirect('/change-password');
+                return;
             }
             
-            if ($newPassword !== $confirmPassword) {
-                $errors[] = 'Mật khẩu mới và xác nhận mật khẩu không khớp';
+            // Lấy mật khẩu hiện tại
+            $query = "SELECT password FROM users WHERE user_id = :user_id";
+            $stmt = $this->db->prepare($query);
+            $stmt->execute([':user_id' => getUserId()]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!password_verify($old_password, $user['password'])) {
+                setFlashMessage('error', 'Mật khẩu cũ không đúng!');
+                redirect('/change-password');
+                return;
             }
             
-            if (empty($errors)) {
-                // Check current password
-                $user = $this->userModel->getById($_SESSION['user_id']);
-                
-                if ($user['password'] !== $currentPassword) {
-                    $this->setFlash('Mật khẩu hiện tại không đúng', 'danger');
-                } else {
-                    // Update password
-                    $updated = $this->userModel->update($_SESSION['user_id'], [
-                        'password' => $newPassword
-                    ]);
-                    
-                    if ($updated) {
-                        $this->setFlash('Đổi mật khẩu thành công', 'success');
-                        $this->redirect('change-password.php');
-                    } else {
-                        $this->setFlash('Lỗi khi đổi mật khẩu', 'danger');
-                    }
-                }
+            // Cập nhật mật khẩu mới
+            $hashed = password_hash($new_password, PASSWORD_BCRYPT);
+            $updateQuery = "UPDATE users SET password = :password WHERE user_id = :user_id";
+            $updateStmt = $this->db->prepare($updateQuery);
+            
+            if ($updateStmt->execute([':password' => $hashed, ':user_id' => getUserId()])) {
+                logActivity(getUserId(), 'Đổi mật khẩu', 'users', getUserId());
+                setFlashMessage('success', 'Đổi mật khẩu thành công!');
+                redirect('/dashboard');
             } else {
-                $this->setFlash(implode('<br>', $errors), 'danger');
+                setFlashMessage('error', 'Có lỗi xảy ra!');
+                redirect('/change-password');
             }
         }
         
-        $this->view('auth/change-password', [
-            'title' => 'Đổi mật khẩu'
-        ]);
+        $pageTitle = 'Đổi mật khẩu';
+        require_once __DIR__ . '/../views/auth/change_password.php';
     }
 }
