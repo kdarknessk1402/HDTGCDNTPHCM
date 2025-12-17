@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: 127.0.0.1
--- Thời gian đã tạo: Th12 12, 2025 lúc 03:23 AM
+-- Thời gian đã tạo: Th12 16, 2025 lúc 03:43 AM
 -- Phiên bản máy phục vụ: 10.4.32-MariaDB
 -- Phiên bản PHP: 8.2.12
 
@@ -62,16 +62,15 @@ DELIMITER ;
 
 CREATE TABLE `activity_logs` (
   `log_id` int(11) NOT NULL,
-  `user_id` int(11) DEFAULT NULL COMMENT 'ID người dùng',
-  `table_name` varchar(50) NOT NULL COMMENT 'Tên bảng',
-  `record_id` int(11) NOT NULL COMMENT 'ID bản ghi',
-  `action` varchar(20) NOT NULL COMMENT 'Hành động (INSERT, UPDATE, DELETE)',
-  `old_data` text DEFAULT NULL COMMENT 'Dữ liệu cũ (JSON)',
-  `new_data` text DEFAULT NULL COMMENT 'Dữ liệu mới (JSON)',
-  `ip_address` varchar(45) DEFAULT NULL COMMENT 'Địa chỉ IP',
-  `user_agent` text DEFAULT NULL COMMENT 'User agent',
+  `user_id` int(11) DEFAULT NULL COMMENT 'ID user thực hiện',
+  `action` varchar(100) NOT NULL COMMENT 'Hành động',
+  `table_name` varchar(50) DEFAULT NULL COMMENT 'Tên bảng',
+  `record_id` int(11) DEFAULT NULL COMMENT 'ID bản ghi',
+  `description` text DEFAULT NULL COMMENT 'Mô tả chi tiết',
+  `ip_address` varchar(45) DEFAULT NULL COMMENT 'IP address',
+  `user_agent` varchar(255) DEFAULT NULL COMMENT 'User agent',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Bảng log hoạt động';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Bảng ghi log hoạt động';
 
 -- --------------------------------------------------------
 
@@ -119,6 +118,15 @@ CREATE TABLE `co_so` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Bảng Cơ sở';
 
+--
+-- Đang đổ dữ liệu cho bảng `co_so`
+--
+
+INSERT INTO `co_so` (`co_so_id`, `ma_co_so`, `ten_co_so`, `dia_chi`, `so_dien_thoai`, `email`, `nguoi_phu_trach`, `thu_tu`, `is_active`, `created_by`, `updated_by`, `created_at`, `updated_at`) VALUES
+(1, 'CS1', 'Cơ sở 1 - Quận 3', '280/6 Võ Văn Tần, P.5, Q.3, TP.HCM', '028-3930-3838', 'coso1@tphcm.edu.vn', 'Nguyễn Văn A', 1, 1, NULL, NULL, '2025-12-12 06:29:25', '2025-12-12 06:29:25'),
+(2, 'CS2', 'Cơ sở 2 - Quận 12', '456 Tô Ký, P.Trung Mỹ Tây, Q.12, TP.HCM', '028-3730-4949', 'coso2@tphcm.edu.vn', 'Trần Thị B', 2, 1, NULL, NULL, '2025-12-12 06:29:25', '2025-12-12 06:29:25'),
+(3, 'CS3', 'Cơ sở 3 - Thủ Đức', '123 Phạm Văn Đồng, P.Hiệp Bình Chánh, TP.Thủ Đức, TP.HCM', '028-3897-5656', 'coso3@tphcm.edu.vn', 'Lê Văn C', 3, 1, NULL, NULL, '2025-12-12 06:29:25', '2025-12-12 06:29:25');
+
 -- --------------------------------------------------------
 
 --
@@ -139,6 +147,21 @@ CREATE TABLE `don_gia_gio_day` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Bảng Đơn giá giờ dạy';
+
+--
+-- Đang đổ dữ liệu cho bảng `don_gia_gio_day`
+--
+
+INSERT INTO `don_gia_gio_day` (`don_gia_id`, `co_so_id`, `trinh_do_id`, `don_gia`, `ngay_ap_dung`, `ngay_ket_thuc`, `ghi_chu`, `is_active`, `created_by`, `updated_by`, `created_at`, `updated_at`) VALUES
+(1, 1, 1, 250000.00, '2023-01-01', NULL, 'Đơn giá cho giảng viên Tiến sĩ tại Cơ sở 1', 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(2, 1, 2, 200000.00, '2023-01-01', NULL, 'Đơn giá cho giảng viên Thạc sĩ tại Cơ sở 1', 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(3, 1, 3, 150000.00, '2023-01-01', NULL, 'Đơn giá cho giảng viên Đại học tại Cơ sở 1', 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(4, 2, 1, 230000.00, '2023-01-01', NULL, 'Đơn giá cho giảng viên Tiến sĩ tại Cơ sở 2', 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(5, 2, 2, 180000.00, '2023-01-01', NULL, 'Đơn giá cho giảng viên Thạc sĩ tại Cơ sở 2', 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(6, 2, 3, 140000.00, '2023-01-01', NULL, 'Đơn giá cho giảng viên Đại học tại Cơ sở 2', 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(7, 3, 1, 240000.00, '2023-01-01', NULL, 'Đơn giá cho giảng viên Tiến sĩ tại Cơ sở 3', 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(8, 3, 2, 190000.00, '2023-01-01', NULL, 'Đơn giá cho giảng viên Thạc sĩ tại Cơ sở 3', 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(9, 3, 3, 145000.00, '2023-01-01', NULL, 'Đơn giá cho giảng viên Đại học tại Cơ sở 3', 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32');
 
 -- --------------------------------------------------------
 
@@ -182,6 +205,18 @@ CREATE TABLE `giang_vien` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Bảng Giảng viên thỉnh giảng';
+
+--
+-- Đang đổ dữ liệu cho bảng `giang_vien`
+--
+
+INSERT INTO `giang_vien` (`giang_vien_id`, `khoa_id`, `ma_giang_vien`, `ten_giang_vien`, `nam_sinh`, `gioi_tinh`, `ngay_sinh`, `noi_sinh`, `so_cccd`, `ngay_cap_cccd`, `noi_cap_cccd`, `trinh_do_id`, `chuyen_nganh_dao_tao`, `truong_dao_tao`, `nam_tot_nghiep`, `chung_chi_su_pham`, `dia_chi`, `dia_chi_tam_tru`, `so_dien_thoai`, `email`, `so_tai_khoan`, `ten_ngan_hang`, `chi_nhanh_ngan_hang`, `chu_tai_khoan`, `ma_so_thue`, `file_cccd`, `file_bang_cap`, `file_chung_chi`, `ghi_chu`, `is_active`, `created_by`, `updated_by`, `created_at`, `updated_at`) VALUES
+(1, 1, 'CNTTGV001', 'Nguyễn Văn An', '1985', 'Nam', '1985-05-15', NULL, '001085012345', '2020-01-15', 'Cục Cảnh sát QLHC về TTXH', 2, 'Công nghệ phần mềm', 'Đại học Bách Khoa TP.HCM', '2010', NULL, '123 Nguyễn Văn Linh, Q.7, TP.HCM', NULL, '0901111111', 'nva@email.com', '0011223344', 'Vietcombank', NULL, 'NGUYEN VAN AN', NULL, NULL, NULL, NULL, NULL, 1, 3, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(2, 1, 'CNTTGV002', 'Trần Thị Bình', '1988', 'Nữ', '1988-08-20', NULL, '001088067890', '2020-02-10', 'Cục Cảnh sát QLHC về TTXH', 3, 'Hệ thống thông tin', 'Đại học Khoa học Tự nhiên', '2011', NULL, '456 Lê Văn Việt, Q.9, TP.HCM', NULL, '0902222222', 'ttb@email.com', '0022334455', 'Techcombank', NULL, 'TRAN THI BINH', NULL, NULL, NULL, NULL, NULL, 1, 3, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(3, 2, 'CKGV001', 'Lê Văn Cường', '1983', 'Nam', '1983-12-10', NULL, '001083098765', '2020-03-05', 'Cục Cảnh sát QLHC về TTXH', 2, 'Cơ khí chế tạo máy', 'Đại học Bách Khoa TP.HCM', '2008', NULL, '789 Lê Hồng Phong, Q.10, TP.HCM', NULL, '0903333333', 'lvc@email.com', '0033445566', 'VPBank', NULL, 'LE VAN CUONG', NULL, NULL, NULL, NULL, NULL, 1, 4, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(4, 2, 'CKGV002', 'Phạm Thị Dung', '1990', 'Nữ', '1990-03-25', NULL, '001090034567', '2020-04-20', 'Cục Cảnh sát QLHC về TTXH', 3, 'Công nghệ hàn', 'Đại học Sư phạm Kỹ thuật', '2013', NULL, '321 Cách Mạng Tháng 8, Q.3, TP.HCM', NULL, '0904444444', 'ptd@email.com', '0044556677', 'ACB', NULL, 'PHAM THI DUNG', NULL, NULL, NULL, NULL, NULL, 1, 4, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(5, 3, 'DTGV001', 'Hoàng Văn Em', '1986', 'Nam', '1986-07-18', NULL, '001086045678', '2020-05-15', 'Cục Cảnh sát QLHC về TTXH', 1, 'Kỹ thuật điện tử', 'Đại học Bách Khoa Hà Nội', '2009', NULL, '654 Phan Văn Trị, Gò Vấp, TP.HCM', NULL, '0905555555', 'hve@email.com', '0055667788', 'Vietinbank', NULL, 'HOANG VAN EM', NULL, NULL, NULL, NULL, NULL, 1, 5, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(6, 3, 'DTGV002', 'Đỗ Thị Phương', '1992', 'Nữ', '1992-11-05', NULL, '001092078901', '2020-06-10', 'Cục Cảnh sát QLHC về TTXH', 2, 'Điện tử viễn thông', 'Đại học Bưu chính Viễn thông', '2015', NULL, '987 Quang Trung, Gò Vấp, TP.HCM', NULL, '0906666666', 'dtp@email.com', '0066778899', 'BIDV', NULL, 'DO THI PHUONG', NULL, NULL, NULL, NULL, NULL, 1, 5, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32');
 
 --
 -- Bẫy `giang_vien`
@@ -341,6 +376,23 @@ CREATE TABLE `lop` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Bảng Lớp';
 
+--
+-- Đang đổ dữ liệu cho bảng `lop`
+--
+
+INSERT INTO `lop` (`lop_id`, `nghe_id`, `nien_khoa_id`, `ma_lop`, `ten_lop`, `si_so`, `giao_vien_chu_nhiem`, `thu_tu`, `is_active`, `created_by`, `updated_by`, `created_at`, `updated_at`) VALUES
+(1, 1, 1, 'CNTT01_K2023_01', 'Lập trình K2023 - Lớp 1', 35, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(2, 1, 1, 'CNTT01_K2023_02', 'Lập trình K2023 - Lớp 2', 32, NULL, 2, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(3, 2, 2, 'CNTT02_K2023_01', 'Quản trị mạng K2023 - Lớp 1', 30, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(4, 3, 3, 'CNTT03_K2023_01', 'Thiết kế đồ họa K2023 - Lớp 1', 28, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(5, 4, 4, 'CK01_K2023_01', 'Cơ khí chế tạo K2023 - Lớp 1', 30, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(6, 4, 4, 'CK01_K2023_02', 'Cơ khí chế tạo K2023 - Lớp 2', 28, NULL, 2, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(7, 5, 5, 'CK02_K2023_01', 'Hàn K2023 - Lớp 1', 25, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(8, 6, 6, 'CK03_K2023_01', 'Sửa chữa ô tô K2023 - Lớp 1', 30, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(9, 7, 7, 'DT01_K2023_01', 'Điện ô tô K2023 - Lớp 1', 28, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(10, 8, 8, 'DT02_K2023_01', 'Điện công nghiệp K2023 - Lớp 1', 32, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(11, 9, 9, 'DT03_K2023_01', 'Điện tử viễn thông K2023 - Lớp 1', 30, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32');
+
 -- --------------------------------------------------------
 
 --
@@ -367,6 +419,34 @@ CREATE TABLE `mon_hoc` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Bảng Môn học';
 
+--
+-- Đang đổ dữ liệu cho bảng `mon_hoc`
+--
+
+INSERT INTO `mon_hoc` (`mon_hoc_id`, `nghe_id`, `nien_khoa_id`, `ma_mon_hoc`, `ten_mon_hoc`, `so_tin_chi`, `so_gio_ly_thuyet`, `so_gio_thuc_hanh`, `so_gio_chuan`, `hoc_ky`, `mo_ta`, `thu_tu`, `is_active`, `created_by`, `updated_by`, `created_at`, `updated_at`) VALUES
+(1, 1, 1, 'CNTT01_MH01', 'Lập trình C/C++', 4, 30, 30, 60, NULL, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(2, 1, 1, 'CNTT01_MH02', 'Cơ sở dữ liệu', 3, 25, 20, 45, NULL, NULL, 2, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(3, 1, 1, 'CNTT01_MH03', 'Lập trình Web', 4, 30, 30, 60, NULL, NULL, 3, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(4, 2, 2, 'CNTT02_MH01', 'Mạng máy tính', 3, 25, 20, 45, NULL, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(5, 2, 2, 'CNTT02_MH02', 'Quản trị hệ thống Windows Server', 4, 30, 30, 60, NULL, NULL, 2, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(6, 2, 2, 'CNTT02_MH03', 'Quản trị hệ thống Linux', 4, 30, 30, 60, NULL, NULL, 3, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(7, 3, 3, 'CNTT03_MH01', 'Photoshop cơ bản', 3, 15, 30, 45, NULL, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(8, 3, 3, 'CNTT03_MH02', 'Illustrator', 3, 15, 30, 45, NULL, NULL, 2, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(9, 3, 3, 'CNTT03_MH03', 'Thiết kế UI/UX', 4, 20, 40, 60, NULL, NULL, 3, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(10, 4, 4, 'CK01_MH01', 'Vẽ kỹ thuật cơ khí', 3, 20, 25, 45, NULL, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(11, 4, 4, 'CK01_MH02', 'Công nghệ gia công cơ khí', 4, 25, 35, 60, NULL, NULL, 2, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(12, 4, 4, 'CK01_MH03', 'Đo lường kỹ thuật', 3, 20, 25, 45, NULL, NULL, 3, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(13, 5, 5, 'CK02_MH01', 'Kỹ thuật hàn điện', 4, 20, 40, 60, NULL, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(14, 5, 5, 'CK02_MH02', 'Hàn TIG/MIG', 4, 20, 40, 60, NULL, NULL, 2, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(15, 6, 6, 'CK03_MH01', 'Cấu tạo động cơ ô tô', 4, 30, 30, 60, NULL, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(16, 6, 6, 'CK03_MH02', 'Hệ thống truyền lực', 3, 25, 20, 45, NULL, NULL, 2, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(17, 7, 7, 'DT01_MH01', 'Điện ô tô cơ bản', 3, 25, 20, 45, NULL, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(18, 7, 7, 'DT01_MH02', 'Hệ thống đánh lửa', 3, 20, 25, 45, NULL, NULL, 2, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(19, 8, 8, 'DT02_MH01', 'Mạch điện tử công suất', 4, 30, 30, 60, NULL, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(20, 8, 8, 'DT02_MH02', 'PLC và tự động hóa', 4, 25, 35, 60, NULL, NULL, 2, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(21, 9, 9, 'DT03_MH01', 'Kỹ thuật số', 3, 25, 20, 45, NULL, NULL, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(22, 9, 9, 'DT03_MH02', 'Truyền thông số', 4, 30, 30, 60, NULL, NULL, 2, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32');
+
 -- --------------------------------------------------------
 
 --
@@ -387,6 +467,21 @@ CREATE TABLE `nghe` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Bảng Nghề';
+
+--
+-- Đang đổ dữ liệu cho bảng `nghe`
+--
+
+INSERT INTO `nghe` (`nghe_id`, `khoa_id`, `ma_nghe`, `ten_nghe`, `mo_ta`, `so_nam_dao_tao`, `thu_tu`, `is_active`, `created_by`, `updated_by`, `created_at`, `updated_at`) VALUES
+(1, 1, 'CNTT01', 'Lập trình máy tính', 'Nghề Lập trình máy tính', 3, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(2, 1, 'CNTT02', 'Quản trị mạng máy tính', 'Nghề Quản trị mạng máy tính', 3, 2, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(3, 1, 'CNTT03', 'Thiết kế đồ họa', 'Nghề Thiết kế đồ họa', 3, 3, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(4, 2, 'CK01', 'Cơ khí chế tạo', 'Nghề Cơ khí chế tạo', 3, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(5, 2, 'CK02', 'Hàn', 'Nghề Hàn công nghiệp', 2, 2, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(6, 2, 'CK03', 'Sửa chữa và lắp ráp ô tô', 'Nghề Sửa chữa ô tô', 3, 3, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(7, 3, 'DT01', 'Điện ô tô', 'Nghề Điện ô tô', 2, 1, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(8, 3, 'DT02', 'Điện công nghiệp', 'Nghề Điện công nghiệp', 3, 2, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(9, 3, 'DT03', 'Điện tử viễn thông', 'Nghề Điện tử viễn thông', 3, 3, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32');
 
 -- --------------------------------------------------------
 
@@ -409,6 +504,21 @@ CREATE TABLE `nien_khoa` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Bảng Niên khóa';
+
+--
+-- Đang đổ dữ liệu cho bảng `nien_khoa`
+--
+
+INSERT INTO `nien_khoa` (`nien_khoa_id`, `nghe_id`, `cap_do_id`, `ma_nien_khoa`, `ten_nien_khoa`, `nam_bat_dau`, `nam_ket_thuc`, `mo_ta`, `is_active`, `created_by`, `updated_by`, `created_at`, `updated_at`) VALUES
+(1, 1, 1, 'NK_CNTT01_CD_2023', 'Niên khóa 2023-2025 - Lập trình máy tính (Cao đẳng', '2023', '2025', NULL, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(2, 2, 1, 'NK_CNTT02_CD_2023', 'Niên khóa 2023-2025 - Quản trị mạng (Cao đẳng)', '2023', '2025', NULL, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(3, 3, 1, 'NK_CNTT03_CD_2023', 'Niên khóa 2023-2025 - Thiết kế đồ họa (Cao đẳng)', '2023', '2025', NULL, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(4, 4, 2, 'NK_CK01_TC_2023', 'Niên khóa 2023-2026 - Cơ khí chế tạo (Trung cấp)', '2023', '2026', NULL, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(5, 5, 1, 'NK_CK02_CD_2023', 'Niên khóa 2023-2025 - Hàn (Cao đẳng)', '2023', '2025', NULL, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(6, 6, 1, 'NK_CK03_CD_2023', 'Niên khóa 2023-2025 - Sửa chữa ô tô (Cao đẳng)', '2023', '2025', NULL, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(7, 7, 1, 'NK_DT01_CD_2023', 'Niên khóa 2023-2025 - Điện ô tô (Cao đẳng)', '2023', '2025', NULL, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(8, 8, 2, 'NK_DT02_TC_2023', 'Niên khóa 2023-2026 - Điện công nghiệp (Trung cấp)', '2023', '2026', NULL, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32'),
+(9, 9, 1, 'NK_DT03_CD_2023', 'Niên khóa 2023-2025 - Điện tử viễn thông (Cao đẳng', '2023', '2025', NULL, 1, NULL, NULL, '2025-12-12 06:57:32', '2025-12-12 06:57:32');
 
 -- --------------------------------------------------------
 
@@ -492,7 +602,7 @@ INSERT INTO `users` (`user_id`, `username`, `password`, `full_name`, `email`, `p
 (5, 'truongkhoa_kt', '123456', 'Hoàng Văn Em', 'truongkhoa.kt@cdnhcm.edu.vn', '0901234571', 3, 2, 1, NULL, '2025-12-11 02:40:19', '2025-12-11 02:40:19'),
 (6, 'truongkhoa_ck', '123456', 'Võ Thị Phương', 'truongkhoa.ck@cdnhcm.edu.vn', '0901234572', 3, 3, 1, NULL, '2025-12-11 02:40:19', '2025-12-11 02:40:19'),
 (7, 'truongkhoa_dl', '123456', 'Đỗ Văn Giang', 'truongkhoa.dl@cdnhcm.edu.vn', '0901234573', 3, 4, 1, NULL, '2025-12-11 02:40:19', '2025-12-11 02:40:19'),
-(8, 'giaovu_cntt', '123456', 'Nguyễn Thị Hoa', 'giaovu.cntt@cdnhcm.edu.vn', '0901234574', 4, 1, 1, NULL, '2025-12-11 02:40:19', '2025-12-11 02:40:19'),
+(8, 'giaovu_cntt', '123456', 'Nguyễn Thị Hoa', 'giaovu.cntt@cdnhcm.edu.vn', '0901234574', 4, 1, 1, '2025-12-12 09:30:59', '2025-12-11 02:40:19', '2025-12-12 02:30:59'),
 (9, 'giaovu_kt', '123456', 'Trần Văn Inh', 'giaovu.kt@cdnhcm.edu.vn', '0901234575', 4, 2, 1, NULL, '2025-12-11 02:40:19', '2025-12-11 02:40:19'),
 (10, 'giaovu_ck', '123456', 'Lê Thị Kim', 'giaovu.ck@cdnhcm.edu.vn', '0901234576', 4, 3, 1, NULL, '2025-12-11 02:40:19', '2025-12-11 02:40:19'),
 (11, 'giaovu_dl', '123456', 'Phạm Văn Long', 'giaovu.dl@cdnhcm.edu.vn', '0901234577', 4, 4, 1, NULL, '2025-12-11 02:40:19', '2025-12-11 02:40:19');
@@ -622,10 +732,10 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 --
 ALTER TABLE `activity_logs`
   ADD PRIMARY KEY (`log_id`),
-  ADD KEY `idx_user` (`user_id`),
-  ADD KEY `idx_table` (`table_name`),
+  ADD KEY `idx_user_id` (`user_id`),
+  ADD KEY `idx_created_at` (`created_at`),
   ADD KEY `idx_action` (`action`),
-  ADD KEY `idx_created_at` (`created_at`);
+  ADD KEY `idx_table_record` (`table_name`,`record_id`);
 
 --
 -- Chỉ mục cho bảng `cap_do_giang_day`
@@ -804,19 +914,19 @@ ALTER TABLE `cap_do_giang_day`
 -- AUTO_INCREMENT cho bảng `co_so`
 --
 ALTER TABLE `co_so`
-  MODIFY `co_so_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `co_so_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT cho bảng `don_gia_gio_day`
 --
 ALTER TABLE `don_gia_gio_day`
-  MODIFY `don_gia_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `don_gia_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT cho bảng `giang_vien`
 --
 ALTER TABLE `giang_vien`
-  MODIFY `giang_vien_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `giang_vien_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT cho bảng `hop_dong`
@@ -840,19 +950,19 @@ ALTER TABLE `khoa`
 -- AUTO_INCREMENT cho bảng `lop`
 --
 ALTER TABLE `lop`
-  MODIFY `lop_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `lop_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT cho bảng `mon_hoc`
 --
 ALTER TABLE `mon_hoc`
-  MODIFY `mon_hoc_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `mon_hoc_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
 -- AUTO_INCREMENT cho bảng `nghe`
 --
 ALTER TABLE `nghe`
-  MODIFY `nghe_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `nghe_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT cho bảng `nien_khoa`
@@ -886,7 +996,7 @@ ALTER TABLE `users`
 -- Các ràng buộc cho bảng `activity_logs`
 --
 ALTER TABLE `activity_logs`
-  ADD CONSTRAINT `activity_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL;
+  ADD CONSTRAINT `fk_activity_logs_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL;
 
 --
 -- Các ràng buộc cho bảng `don_gia_gio_day`
